@@ -8,3 +8,5 @@ Provides a simple way to run Python scripts that control [NeuroExplorer](https:/
 The package also provides classes to read and write .nex and .nex5 data files.
 
 See [NeuroExplorer Python Scripting Documentation](https://www.neuroexplorer.com/docs/reference/scripting/index.html) for detailed information about Python scripting in NeuroExplorer.
+
+To install package, run `pip install nex`.
