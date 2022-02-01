@@ -109,7 +109,7 @@ class NexVar:
         raise ValueError('invalid operand in NexVar division. Number or NexVar is expected')
 
     def _Get(self, propertyName):
-        """Internal method.  Returns variable property."""
+        """Internal method. Returns variable property."""
         return nexLink.nexGetProperty(1, self.varId, propertyName)
     
     def Name(self) -> str:
@@ -131,15 +131,15 @@ class NexVar:
         return json.loads(resultJsonString)
 
     def Timestamps(self) -> List[float]:
-        """Returns variable timestamps (in seconds) as a list"""
+        """Returns variable timestamps (in seconds) as a list."""
         return self._Get('Timestamps')   
 
     def ContinuousValues(self) -> List[float]:
-        """Returns all values (in milliVolts) of a continuous variable."""
+        """Returns all values of a continuous variable in milliVolts."""
         return self._Get('ContinuousValues')
 
     def ContinuousValuesAsInt16(self) -> List[float]:
-        """Returns raw values of a continuous variable as a list of int16 integers converted fo floats."""
+        """Returns raw values of a continuous variable as a list of int16 integers converted to floats."""
         return self._Get('ContinuousValuesAsInt16')
     
     def ContMin(self) -> float:
@@ -172,7 +172,7 @@ class NexVar:
       
     def WaveformValues(self) -> List[List[float]]:
         """
-        Returns waveforms of a waveform variable as a lis ot lists.
+        Returns waveforms of a waveform variable as a list of lists.
         The first element of the returned list contains the list of values of the first waveform, 
         the second - values of the second waveform, etc.
         """
@@ -180,7 +180,7 @@ class NexVar:
        
     def Markers(self) -> List[List]:
         """
-        Returns marker values of a marker variable as a list ot lists.
+        Returns marker values of a marker variable as a list of lists.
         The first element of the returned list contains values of the first marker field, 
         the second - values of the second marker field, etc.
         If all marker values cannot be converted to numbers, the returned values are strings.
@@ -272,7 +272,7 @@ class NexDoc:
     __nonzero__ = __bool__
     
     def _CheckIfValidDoc(self):
-        """ Internal method. Checks if document is valid and throws error if document is not valid."""
+        """Internal method. Checks if document is valid and throws error if document is not valid."""
         if not self:
             raise ValueError('Invalid document. Is data file opened in NeuroExplorer?')
 
@@ -291,24 +291,24 @@ class NexDoc:
         self.vars[newName] = var
         
     def _Get(self, propertyName):
-        """Internal method. Generic get."""
+        """Internal method. Returns document property."""
         return nexLink.nexGetProperty(0, self.docId, propertyName)
 
     #anres
     def GetNumResNCols(self) -> int:
-        """ Returns the number of columns in numerical results."""
+        """Returns the number of columns in numerical results."""
         self._CheckIfValidDoc()
         return int(self._Get('NumResNCols'))
 
     #anres
     def GetNumResNRows(self) -> int:
-        """ Returns the number of rows in numerical results."""
+        """Returns the number of rows in numerical results."""
         self._CheckIfValidDoc()
         return int(self._Get('NumResNRows'))
 
     #anres
     def GetNumResValue(self, row:int, col:int) -> float:
-        """ Returns specified numerical results value."""
+        """Returns specified numerical results value."""
         # the recommendation is to use doc.GetAllNumericalResults(). see GetNumRes function.
         self._CheckIfValidDoc()
         return nexLink.nexGetIndexedNumResValue(self.docId, row, col)
@@ -318,7 +318,7 @@ class NexDoc:
         """
         Returns all numerical results as a list of lists.
         The first element contains the values of the first column of numerical results.
-        The second contains values of the second column of numerical results, etc.
+        The second element contains values of the second column of numerical results, etc.
         """
         self._CheckIfValidDoc()
         return self._Get('NumRes')
@@ -335,18 +335,18 @@ class NexDoc:
 
     #anres
     def GetNumResColumnNames(self) -> List[str]:
-        """Returns a list of all column names in numerical results."""
+        """Returns the list of all column names in numerical results."""
         self._CheckIfValidDoc()
         return self._Get('NumResColumnNames')
 
     #anres
     def GetNumResSummaryNCols(self) -> int:
-        """ Returns the number of columns in summary of numerical results."""
+        """Returns the number of columns in numerical results summary."""
         return int(self._Get('NumResSummaryNCols'))
 
     #anres
     def GetNumResSummaryNRows(self) -> int:
-        """ Returns the number of rows in summary of numerical results."""
+        """ Returns the number of rows in numerical results summary."""
         self._CheckIfValidDoc()
         return int(self._Get('NumResSummaryNRows'))
 
@@ -356,6 +356,7 @@ class NexDoc:
         Returns all values of numerical results summary as a list of lists.
         The first element contains the values of the first column of numerical results summary.
         The second contains values of the second column of numerical results summary, etc.
+        The values are returned as strings.
         """
         self._CheckIfValidDoc()
         return self._Get('NumResSummary')
@@ -396,13 +397,13 @@ class NexDoc:
 
     #docproperties
     def _SetProperty(self, propertyName, propertyValue):
-        """Internal method. Sets doc property."""
+        """Internal method. Sets NexDoc property."""
         prop = {'name': propertyName, 'value': propertyValue}
         return nexLink.nexSetDocProperty(self.docId, json.dumps(prop))
 
     #creatingnewvars
     def CreateWaveformVariable(self, name, waveformSamplingRate, timestamps, values):
-        """Creates new waveform variable with specified values."""
+        """Creates new waveform variable with the specified values."""
         self._CheckIfValidDoc()
         nexLink.nexCreateWaveformVar(self.docId, name, waveformSamplingRate, timestamps, values) 
 
