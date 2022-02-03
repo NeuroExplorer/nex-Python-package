@@ -667,7 +667,7 @@ def AddTimestamp(var:NexVar, timestamp):
     nexLink.nexAddTimestamp(var.varId, timestamp) 
 
 def _JsonPlusNumList(jsonString, numList):
-    """Internal helper function. Runs generic command with numeric array and json string with parameters."""
+    """Internal helper function. Runs generic command with numeric array and JSON string with parameters."""
     nexLink.nexJsonStringAndNumArray(jsonString, numList)
 
 #anres
