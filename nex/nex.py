@@ -6,8 +6,6 @@ import csv
 import sys
 import random
 import math
-import subprocess
-import importlib
 from typing import List
 import nex.nexLink as nexLink
 
@@ -43,49 +41,43 @@ class NexVar:
     def __add__(self, other) -> NexVar:
         if isinstance(other, numbers.Number):
             return ContAdd(self, other)
-        else:
-            if isinstance(other, NexVar):
-                return ContAddCont(self, other)
+        elif isinstance(other, NexVar):
+            return ContAddCont(self, other)
         raise ValueError('invalid operand in NexVar addition. Number or NexVar is expected')
     
     def __radd__(self, other) -> NexVar:
         if isinstance(other, numbers.Number):
             return ContAdd(self, other)
-        else:
-            if isinstance(other, NexVar):
-                return ContAddCont(self, other)
+        elif isinstance(other, NexVar):
+            return ContAddCont(self, other)
         raise ValueError('invalid operand in NexVar addition. Number or NexVar is expected')
 
     def __sub__(self, other) -> NexVar:
         if isinstance(other, numbers.Number):
             return ContAdd(self, -other)
-        else:
-            if isinstance(other, NexVar):
-                return ContSubtractCont(self, other)
+        elif isinstance(other, NexVar):
+            return ContSubtractCont(self, other)
         raise ValueError('invalid operand in NexVar subtraction. Number or NexVar is expected')
 
     def __rsub__(self, other) -> NexVar:
         if isinstance(other, numbers.Number):
             return ContAdd(self, -other)
-        else:
-            if isinstance(other, NexVar):
-                return ContSubtractCont(self, other)
+        elif isinstance(other, NexVar):
+            return ContSubtractCont(self, other)
         raise ValueError('invalid operand in NexVar subtraction. Number or NexVar is expected')
     
     def __mul__(self, other) -> NexVar:
         if isinstance(other, numbers.Number):
             return ContMult(self, other)
-        else:
-            if isinstance(other, NexVar):
-                return ContMultCont(self, other)
+        elif isinstance(other, NexVar):
+            return ContMultCont(self, other)
         raise ValueError('invalid operand in NexVar multiplication. Number or NexVar is expected')
 
     def __rmul__(self, other) -> NexVar:
         if isinstance(other, numbers.Number):
             return ContMult(self, other)
-        else:
-            if isinstance(other, NexVar):
-                return ContMultCont(self, other)
+        elif isinstance(other, NexVar):
+            return ContMultCont(self, other)
         raise ValueError('invalid operand in NexVar multiplication. Number or NexVar is expected')
 
     def __div__(self, other) -> NexVar:
@@ -93,9 +85,8 @@ class NexVar:
             if float(other) == 0.0:
                 raise ValueError('invalid operand in NexVar division. Non-zero number is expected')
             return ContMult(self, 1.0/float(other))
-        else:
-            if isinstance(other, NexVar):
-                return ContDivCont(self, other)
+        elif isinstance(other, NexVar):
+            return ContDivCont(self, other)
         raise ValueError('invalid operand in NexVar division. Number or NexVar is expected')
     
     def __truediv__(self, other) -> NexVar:
@@ -103,9 +94,8 @@ class NexVar:
             if float(other) == 0.0:
                 raise ValueError('invalid operand in NexVar division. Non-zero number is expected')
             return ContMult(self, 1.0/float(other))
-        else:
-            if isinstance(other, NexVar):
-                return ContDivCont(self, other)
+        elif isinstance(other, NexVar):
+            return ContDivCont(self, other)
         raise ValueError('invalid operand in NexVar division. Number or NexVar is expected')
 
     def _Get(self, propertyName):
@@ -1668,3 +1658,20 @@ def GetNumResColumnNames(doc:NexDoc) -> List[str]:
 def InstallPackageIfNeeded(packageName):
     """Function does nothing. Left for compatibility with internal NeuroExplorer scripting."""
     return
+
+def FilterContinuousVariableEx(contVar, filterType, filterImplementation, filterOrder, freq1, freq2, ripple=1.0):
+    """Filters continuous variable using IIR of FIR frequency filter."""
+    theLocals = locals()
+    theLocals['contVar'] = contVar.varId
+    command = theLocals
+    command['type'] = 'FilterContinuousVariableEx'
+    resultJsonBytes = nexLink.nexRunCommand(json.dumps(command))
+    if resultJsonBytes.startswith(b'error:'):
+        raise RuntimeError(resultJsonBytes[6:].decode('utf-8'))
+    returnedObject = json.loads(resultJsonBytes.decode('utf-8'))
+    if isinstance(returnedObject, dict):
+        if 'type' in returnedObject:
+            if returnedObject['type'] == 'varRef':
+                return NexVar(returnedObject)         
+
+    raise RuntimeError("invalid return from FilterContinuousVariableEx")
