@@ -5,7 +5,6 @@ import array
 import os
 import sys
 import tempfile
-#import base64
 
 
 class SocketAdaptor:
