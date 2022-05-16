@@ -7,7 +7,7 @@ import sys
 import random
 import math
 from typing import List
-import nex.nexLink as nexLink
+from . import nexLink
 
 class NexVar:
     """ Class representing a data channel (a variable) in a data file. """
@@ -407,8 +407,8 @@ class NexDoc:
         self._SetProperty('NeuronPosition', theValue)
 
     #modvardata
-    def SetNeuronWire(self, neuron:NexVar, wire):
-        """Sets wire of a neuron variable."""
+    def SetNeuronWire(self, neuron:NexVar, wire:int):
+        """Sets wire (electrode number) of a neuron variable."""
         self._CheckIfValidDoc()
         theValue = {}
         theValue['varId'] = neuron.varId
@@ -416,7 +416,7 @@ class NexDoc:
         self._SetProperty('NeuronWire', theValue)
 
     #modvardata
-    def SetNeuronUnit(self, neuron:NexVar, unit):
+    def SetNeuronUnit(self, neuron:NexVar, unit:int):
         """Sets unit (cluster id) of a neuron variable."""
         self._CheckIfValidDoc()
         theValue = {}
@@ -510,6 +510,14 @@ class NexDoc:
         self._CheckIfValidDoc()
         return self._VarsList('continuous')
 
+    def GetRecordingStartTimeString(self) -> str:
+        """Returns recording start time (if available) as a string in ISO 8601 format. 
+        Use datetime.strptime(sts, '%Y-%m-%dT%H:%M:%S.%f') to convert to Python datetime object."""
+        return self.Get("RecordingStartTime")
+
+    def SetRecordingStartTime(self, dateTimeString:str):
+        """Sets recording start time. dateTimeString should be in ISO 8601 format (use myDateTime.isoformat())""" 
+        return self.SetProperty('RecordingStartTime', dateTimeString)
 
 
 def _NexBuildFunctionCommandDict(functionName, pars):
@@ -1675,3 +1683,19 @@ def FilterContinuousVariableEx(contVar, filterType, filterImplementation, filter
                 return NexVar(returnedObject)         
 
     raise RuntimeError("invalid return from FilterContinuousVariableEx")
+
+
+def DialogEx(jsonString:str):
+    """ Show dialog based on JSON string."""
+    return NexRun("DialogEx", locals())
+
+
+def GetRecordingStartTimeString(doc:NexDoc):
+    """Returns recording start time (if available) as a string in ISO 8601 format. 
+    Use datetime.strptime(sts, '%Y-%m-%dT%H:%M:%S.%f') to convert to Python datetime object."""
+    return doc.GetRecordingStartTimeString()
+
+
+def SetRecordingStartTime(doc:NexDoc, dateTimeString:str):
+    """Sets recording start time. dateTimeString should be in ISO 8601 format (use myDateTime.isoformat())""" 
+    return doc.SetRecordingStartTime(dateTimeString)
