@@ -151,9 +151,9 @@ class DataFormat:
 
 class Reader(object):
     """
-    Nex file reader class
+    Nex file reader class.
     """
-    def __init__(self, useNumpy=False):
+    def __init__(self, useNumpy=True):
         """
         Constructor
         :param useNumpy: option to use numpy to read data arrays.
@@ -163,7 +163,7 @@ class Reader(object):
         self.useNumpy = useNumpy
         self.fromTicksToSeconds = 1
         
-    def ReadNex5File(self, filePath) -> dict:
+    def ReadNex5File(self, filePath:str) -> dict:
         """ 
         Reads data from .nex5 file.
         :param filePath: full path of file
@@ -204,7 +204,7 @@ class Reader(object):
         self.theFile.close()
         return self.fileData
 
-    def ReadNexFile(self, filePath) -> dict:
+    def ReadNexFile(self, filePath:str) -> dict:
         """
         Reads data from .nex file.
         :param filePath:
@@ -238,7 +238,7 @@ class Reader(object):
             methods[varType](var)
 
     
-    def _ToString(self, theBytes, discardAfterFirstZero = False):
+    def _ToString(self, theBytes, discardAfterFirstZero=False):
         """Converts bytes read from a file to a string. 
            Some .nex file writers may write garbage after the zero-terminaged string.
            We need to discard this garbage before converting bytes to string.

@@ -513,11 +513,11 @@ class NexDoc:
     def GetRecordingStartTimeString(self) -> str:
         """Returns recording start time (if available) as a string in ISO 8601 format. 
         Use datetime.strptime(sts, '%Y-%m-%dT%H:%M:%S.%f') to convert to Python datetime object."""
-        return self.Get("RecordingStartTime")
+        return self._Get("RecordingStartTime")
 
     def SetRecordingStartTime(self, dateTimeString:str):
         """Sets recording start time. dateTimeString should be in ISO 8601 format (use myDateTime.isoformat())""" 
-        return self.SetProperty('RecordingStartTime', dateTimeString)
+        return self._SetProperty('RecordingStartTime', dateTimeString)
 
 
 def _NexBuildFunctionCommandDict(functionName, pars):
@@ -665,7 +665,7 @@ def AddTimestamp(var:NexVar, timestamp):
     nexLink.nexAddTimestamp(var.varId, timestamp) 
 
 def _JsonPlusNumList(jsonString, numList):
-    """Internal helper function. Runs generic command with numeric array and JSON string with parameters."""
+    """Internal helper function. Runs generic command with numeric array and a JSON string with function parameters."""
     nexLink.nexJsonStringAndNumArray(jsonString, numList)
 
 #anres
@@ -1685,8 +1685,11 @@ def FilterContinuousVariableEx(contVar, filterType, filterImplementation, filter
     raise RuntimeError("invalid return from FilterContinuousVariableEx")
 
 
-def DialogEx(jsonString:str):
-    """ Show dialog based on JSON string."""
+def DialogEx(jsonString:str) -> str:
+    """ Shows dialog based on JSON string. 
+        Returns JSON string representing a Python dictionary 
+        with dialog result and parameter values.
+    """
     return NexRun("DialogEx", locals())
 
 

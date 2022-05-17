@@ -17,8 +17,9 @@ If you are using Anaconda:
 The package also provides classes to read and write .nex and .nex5 data files.
 
 ```python
-reader = nex.Reader()
-fileData = reader.ReadNexFile('C:\\Data\\file.nex5')
+import nex.nexfile
+reader = nex.nexfile.Reader()
+fileData = reader.ReadNexFile(r"C:\Data\file.nex5")
 ```
 
 

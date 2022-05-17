@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="nex", 
-    version="1.0.2",
+    version="1.0.3",
     author="Alex Kirillov",
     author_email="<alex@neuroexplorer.com>",
     description="Run NeuroExplorer Python scripts and read and write .nex and .nex5 files in any Python IDE",
