@@ -351,7 +351,6 @@ class Reader(object):
         var['Timestamps'] = self._ReadAndScaleValues(tsValueType, var['Header']['Count'], self.tsFreq, True)
 
     def _ReadAndScaleValuesUsingNumpy(self, valueType, count, coeff=1.0, divide=False):
-        import numpy as np
         numpyTypes = [np.int16, np.uint16, np.int32, np.uint32, np.int64, np.uint64, np.float32, np.float64]
         numpyType = numpyTypes[valueType]
         values = np.fromfile(self.theFile, numpyType, count)
@@ -1006,10 +1005,7 @@ class NexWriter(object):
             tsTicks = [int(round(x * self.tsFreq)) for x in timestamps]
             self._WriteList(tsTicks, DataFormat.INT32)
         else:
-            if sys.version_info < (3,):
-                tsTicks = [long(round(x * self.tsFreq)) for x in timestamps]
-            else:
-                tsTicks = [int(round(x * self.tsFreq)) for x in timestamps]
+            tsTicks = [int(round(x * self.tsFreq)) for x in timestamps]
             self._WriteList(tsTicks, DataFormat.INT64)
 
     def _VarWriteWaveformsNumpy(self, var):

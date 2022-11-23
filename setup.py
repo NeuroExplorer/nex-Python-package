@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="nex", 
-    version="1.0.3",
+    version="1.0.4",
     author="Alex Kirillov",
     author_email="<alex@neuroexplorer.com>",
     description="Run NeuroExplorer Python scripts and read and write .nex and .nex5 files in any Python IDE",
@@ -10,8 +10,7 @@ setuptools.setup(
     long_description_content_type="text/plain",
     url="https://github.com/NeuroExplorer/nex-Python-package",
     packages=setuptools.find_packages(),
-    install_requires=['numpy',
-                      ],
+    install_requires=['numpy'],
     keywords=['NeuroExplorer', 'nex', 'nex5', 'Python'],
     classifiers=[
         "Programming Language :: Python :: 3",

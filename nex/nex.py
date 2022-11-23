@@ -7,7 +7,24 @@ import sys
 import random
 import math
 from typing import List
+import numpy as np
+import builtins
+from io import StringIO
 from . import nexLink
+
+
+
+def GetListOfNumbers(varWithListOfNumbers, varName):
+    """ Make sure that passed parameter can be converted to a list of numbers. """
+    try:
+        theList = list(varWithListOfNumbers)
+        for item in theList:
+            f = float(item)
+        return theList
+    except:
+        error = f'parameter "{varName}" should be either a list of numbers, array or numpy array'
+        raise ValueError(error)
+
 
 class NexVar:
     """ Class representing a data channel (a variable) in a data file. """
@@ -184,6 +201,8 @@ class NexVar:
     
     def SetContVarTimestampsAndValues(self, timestamps:List[float], values:List[float]):
         """Assigns timestamps (in seconds) and values (in milliVolts) of a continuous variable."""
+        timestamps = GetListOfNumbers(timestamps, 'timestamps')
+        values = GetListOfNumbers(values, 'values')
         nexLink.nexSetContValues( self.varId, timestamps, values)
         
     def SetContVarStartTimeAndValues(self, startTime:float, values:List[float]):
@@ -192,9 +211,7 @@ class NexVar:
         callPars['functionName'] = 'SetContVarStartTimeAndValues'
         callPars['parameters'] = [{'varId':self.varId}, {'start':startTime}]
         # converting int16 to doubles straight from np.ndarray does not work. list, however, works fine for any number type.
-        import numpy as np
-        if isinstance(values, np.ndarray):
-            values = values.tolist()
+        values = GetListOfNumbers(values, 'values')
         _JsonPlusNumList(json.dumps(callPars), values)
 
     def SetContVarStartTimeAndValues16bit(self, startTime:float, values:List[float]):
@@ -203,13 +220,13 @@ class NexVar:
         callPars['functionName'] = 'SetContVarStartTimeAndValues16bit'
         callPars['parameters'] = [{'varId':self.varId}, {'start':startTime}]
         # converting int16 to doubles straight from np.ndarray does not work. list, however, works fine for any number type.
-        import numpy as np
-        if isinstance(values, np.ndarray):
-            values = values.tolist()
-        _JsonPlusNumList(json.dumps(callPars), values)
+        values = GetListOfNumbers(values, 'values')
+        intValues = [int(i) for i in values]
+        _JsonPlusNumList(json.dumps(callPars), intValues)
 
     def SetTimestamps(self, timestamps:List[float]):
         """Sets timestamps (in seconds) of a neuron or event variable."""
+        timestamps = GetListOfNumbers(timestamps, 'timestamps')
         nexLink.nexSetTimestamps( self.varId, timestamps) 
 
 
@@ -267,20 +284,20 @@ class NexDoc:
             raise ValueError('Invalid document. Is data file opened in NeuroExplorer?')
 
 
-    def _OnDeleteVar(self, var):
+    def _OnDeleteVar(self, var:NexVar):
         """Internal method. Called when var is deleted."""
         varName = var.Name()
         if varName in self.vars.keys():
             del self.vars[varName]
             
-    def _OnRenameVar(self, var, newName):
+    def _OnRenameVar(self, var:NexVar, newName:str):
         """Internal method. Called when var is renamed."""
         varName = var.Name()
         if varName in self.vars.keys():
             del self.vars[varName]
         self.vars[newName] = var
         
-    def _Get(self, propertyName):
+    def _Get(self, propertyName:str):
         """Internal method. Returns document property."""
         return nexLink.nexGetProperty(0, self.docId, propertyName)
 
@@ -386,15 +403,16 @@ class NexDoc:
         return self._Get('SelVarNames')
 
     #docproperties
-    def _SetProperty(self, propertyName, propertyValue):
+    def _SetProperty(self, propertyName:str, propertyValue):
         """Internal method. Sets NexDoc property."""
         prop = {'name': propertyName, 'value': propertyValue}
         return nexLink.nexSetDocProperty(self.docId, json.dumps(prop))
 
     #creatingnewvars
-    def CreateWaveformVariable(self, name, waveformSamplingRate, timestamps, values):
+    def CreateWaveformVariable(self, name:str, waveformSamplingRate:float, timestamps:List[float], values:List[List[float]]):
         """Creates new waveform variable with the specified values."""
         self._CheckIfValidDoc()
+        timestamps = GetListOfNumbers(timestamps, 'timestamps')
         nexLink.nexCreateWaveformVar(self.docId, name, waveformSamplingRate, timestamps, values) 
 
     #modvardata
@@ -424,7 +442,7 @@ class NexDoc:
         theValue['unit'] = unit
         self._SetProperty('NeuronUnit', theValue)
 
-    def _VarNames(self, varType) -> List[str]:
+    def _VarNames(self, varType:str) -> List[str]:
         """Internal helper function. Returns the list of variable names."""
         names = []
         for i in range(int(GetVarCount(self, varType))):
@@ -467,7 +485,7 @@ class NexDoc:
         self._CheckIfValidDoc()
         return self._VarNames('continuous')
     
-    def _VarsList(self, varType) -> List[NexVar]:
+    def _VarsList(self, varType:str) -> List[NexVar]:
         """Internal helper function. Returns the list of variables."""
         theVars = []
         for i in range(int(GetVarCount(self, varType))):
@@ -532,10 +550,6 @@ def _NexBuildFunctionCommandDict(functionName, pars):
         elif isinstance( value, NexVar ):
             commandDict["parameters"].append( { key : value.spec } )
         else:
-            if sys.version_info < (3,):
-                if isinstance(value, unicode):
-                    value = value.encode('UTF-8')
-
             commandDict["parameters"].append( {key : value} )
     return commandDict
 
@@ -563,7 +577,7 @@ def NexRun(functionName, pars):
     return returnedObject
 
 #run
-def SetAppProperty(propertyName, propertyValue):
+def SetAppProperty(propertyName:str, propertyValue):
     """Sets application property."""
     return NexRun("SetAppProperty", locals())
 
@@ -578,7 +592,7 @@ def UsePython2():
     return
 
 #fileselection
-def SelectFiles(initialDirectory='', extension='') -> List[str]:
+def SelectFiles(initialDirectory:str='', extension:str='') -> List[str]:
     """Selects multiple files using Open File dialog. Returns a list of file path names."""
     command = {'type': 'SelectFiles', 'initialDirectory': initialDirectory, 'extension': extension}
     resultJsonBytes = nexLink.nexRunCommand(json.dumps(command))
@@ -591,7 +605,7 @@ def SelectFiles(initialDirectory='', extension='') -> List[str]:
        raise RuntimeError('invalid return value')
 
 #run
-def GetAppProperty(propertyName):
+def GetAppProperty(propertyName:str):
     """
     Returns specified application property.
     See https://www.neuroexplorer.com/docs/reference/scripting/run/GetAppProperty.html
@@ -650,21 +664,21 @@ def Dialog(*arg) -> int:
 # functions that do not use NexRun (implemented separately for speed)   
 
 #modvardata
-def AddContValue(var:NexVar, timestamp, value):
+def AddContValue(var:NexVar, timestamp:float, value:float):
     """Adds a new data point to the specified continuous variable. Timestamp is in seconds, value in milliVolts."""
     nexLink.nexAddContValue(var.varId, timestamp, value) 
 
 #modvardata
-def AddInterval(var:NexVar, interval_start, interval_end):
+def AddInterval(var:NexVar, interval_start:float, interval_end:float):
     """Adds a new interval to the specified interval variable. interval_start and interval_end are in seconds."""
     nexLink.nexAddInterval(var.varId, interval_start, interval_end) 
 
 #modvardata
-def AddTimestamp(var:NexVar, timestamp):
+def AddTimestamp(var:NexVar, timestamp:float):
     """Adds a new timestamp (in seconds) to the specified event or neuron variable."""
     nexLink.nexAddTimestamp(var.varId, timestamp) 
 
-def _JsonPlusNumList(jsonString, numList):
+def _JsonPlusNumList(jsonString:str, numList:List[float]):
     """Internal helper function. Runs generic command with numeric array and a JSON string with function parameters."""
     nexLink.nexJsonStringAndNumArray(jsonString, numList)
 
@@ -679,7 +693,7 @@ def GetNumResNRows(doc:NexDoc) -> int:
     return int(doc.GetNumResNRows())
 
 #anres
-def GetNumRes(doc:NexDoc, row, col) -> float:
+def GetNumRes(doc:NexDoc, row:int, col:int) -> float:
     """Returns the value of the specified cell in the Numerical Results Window of the first graphical view of the document."""
     return doc.GetNumResValue(row, col)
 
@@ -705,32 +719,32 @@ def PrintColumns(d):
 
 
 #varoperations
-def AbsOfContVar(doc:NexDoc, resultName, contVar:NexVar):
+def AbsOfContVar(doc:NexDoc, resultName:str, contVar:NexVar):
     """Calculates absolute value of the signal of a continuous variable."""
     return NexRun("AbsOfContVar", locals())
 
 #analysis
-def ApplyTemplate(doc:NexDoc, templateName):
+def ApplyTemplate(doc:NexDoc, templateName:str):
     """Runs the analysis specified in the analysis template."""
     return NexRun("ApplyTemplate", locals())
 
 #analysis
-def ApplyTemplateToWindow(doc:NexDoc, templatename, windownumber):
+def ApplyTemplateToWindow(doc:NexDoc, templatename:str, windownumber:int):
     """Runs the analysis specified in the template and shows the result in the specified Graph window."""
     return NexRun("ApplyTemplateToWindow", locals())
 
 #math
-def BitwiseAnd(value1, value2) -> int:
+def BitwiseAnd(value1:int, value2:int) -> int:
     """Returns the result of the bitwise AND operation."""
     return int(int(value1) & int(value2))
 
 #math
-def BitwiseOr(value1, value2) -> int:
+def BitwiseOr(value1:int, value2:int) -> int:
     """Returns the result of the bitwise OR operation."""
     return int(int(value1) | int(value2))
 
 #str
-def CharToNum(oneCharString) -> int:
+def CharToNum(oneCharString:str) -> int:
     """Converts a one-character string to a number (a character's ASCII code)."""
     return ord(oneCharString)
 
@@ -740,7 +754,7 @@ def CloseDocument(doc:NexDoc):
     return NexRun("CloseDocument", locals())
 
 #excel
-def CloseExcelFile(filePath):
+def CloseExcelFile(filePath:str):
     """Closes the specified Excel file if the file is open."""
     return NexRun("CloseExcelFile", locals())
 
@@ -750,7 +764,7 @@ def CloseFile(fileID):
     return NexRun("CloseFile", locals())
 
 #ppt
-def ClosePowerPointFile(filePath):
+def ClosePowerPointFile(filePath:str):
     """Closes the specified PowerPoint file if the file is open."""
     return NexRun("ClosePowerPointFile", locals())
 
@@ -760,12 +774,12 @@ def ContVarStoreValuesAsFloats(contVar:NexVar):
     return NexRun("ContVarStoreValuesAsFloats", locals())
 
 #varoperations
-def ContAdd(contVar:NexVar, numberToAdd) -> NexVar:
+def ContAdd(contVar:NexVar, numberToAdd:float) -> NexVar:
     """Creates a new continuous variable with values contVar[i]+numberToAdd, returns a reference to the new variable."""
     return NexRun("ContAdd", locals())
 
 #varoperations
-def ContMult(contVar:NexVar, numberToMultiply) -> NexVar:
+def ContMult(contVar:NexVar, numberToMultiply:float) -> NexVar:
     """Creates a new continuous variable with values contVar[i]*numberToMultiply, returns a reference to the new variable."""
     return NexRun("ContMult", locals())
 
@@ -795,7 +809,7 @@ def CopySelectedVarsToAnotherFile(fromDoc:NexDoc, toDoc:NexDoc):
     return NexRun("CopySelectedVarsToAnotherFile", locals())
 
 #varoperations
-def DecimateContVar(doc:NexDoc, resultName, contVar:NexVar, decimationFactor):
+def DecimateContVar(doc:NexDoc, resultName:str, contVar:NexVar, decimationFactor:int):
     """Decimates specified continuous variable."""
     return NexRun("DecimateContVar", locals())
 
@@ -806,7 +820,7 @@ def Delete(doc:NexDoc, var:NexVar):
     return NexRun("Delete", locals())
 
 #deletingvars
-def DeleteVar(doc:NexDoc, number, varType):
+def DeleteVar(doc:NexDoc, number:int, varType:str):
     """Deletes the specified variable from the file."""
     doc._OnDeleteVar(GetVar(doc, number, varType))
     return NexRun("DeleteVar", locals())
@@ -822,7 +836,7 @@ def DeselectAll(doc:NexDoc):
     return NexRun("DeselectAll", locals())
 
 #varselection
-def DeselectVar(doc:NexDoc, number, varType):
+def DeselectVar(doc:NexDoc, number:int, varType:str):
     """Deselects the specified variable."""
     return NexRun("DeselectVar", locals())
 
@@ -842,37 +856,37 @@ def EndOfInterval(intervalVar) -> NexVar:
     return NexRun("EndOfInterval", locals())
 
 #matlab
-def ExecuteMatlabCommand(command):
+def ExecuteMatlabCommand(command:str):
     """Sends the string command to Matlab and executes the command in Matlab."""
     return NexRun("ExecuteMatlabCommand", locals())
 
 #readwritebinaryandtext
-def FileSeek(fileID, offset, type):
+def FileSeek(fileID, offset:int, type:str):
     """Repositions file pointer by the specified offset."""
     return NexRun("FileSeek", locals())
 
 #varoperations
-def FilterContinuousVariable(doc:NexDoc, contVar:NexVar, filteredVarName, filterType, filterOrder, freq1, freq2):
+def FilterContinuousVariable(doc:NexDoc, contVar:NexVar, filteredVarName:str, filterType:str, filterOrder:int, freq1:float, freq2:float):
     """Filters the specified continuous variable using the specified frequency filter."""
     return NexRun("FilterContinuousVariable", locals())
 
 #str
-def Find(string1, string2):
+def Find(string1:str, string2:str):
     """Looks for a substring inside a specified string."""
     return NexRun("Find", locals())
 
 #varoperations
-def FirstAfter(var1, var2, fromTime, toTime) -> NexVar:
+def FirstAfter(var1:NexVar, var2:NexVar, fromTime:float, toTime:float) -> NexVar:
     """Creates the new event containing the first timestamp of var1 in each of the intervals [var2+fromTime, var2+toTime]."""
     return NexRun("FirstAfter", locals())
 
 #varoperations
-def FirstInInterval(var, intervalVar) -> NexVar:
+def FirstInInterval(var:NexVar, intervalVar:NexVar) -> NexVar:
     """Creates the new event. For each interval of the specified interval variable, the first timestamp in this interval is copied to the result."""
     return NexRun("FirstInInterval", locals())
 
 #varoperations
-def FirstNAfter(var1, var2, count) -> NexVar:
+def FirstNAfter(var1:NexVar, var2:NexVar, count:int) -> NexVar:
     """Creates the new event containing the first N timestamps of one variable after each of the timestamps of the second variable."""
     return NexRun("FirstNAfter", locals())
 
@@ -883,12 +897,12 @@ def GetActiveDocument() -> NexDoc:
     return NexRun("GetActiveDocument", locals())
 
 #math
-def GetBinCount(var:NexVar, timeMin, timeMax):
+def GetBinCount(var:NexVar, timeMin:float, timeMax:float):
     """Calculates the number of timestamps in the specified time range."""
     return int(NexRun("GetBinCount", locals()))
 
 #math
-def GetBit(x, oneBasedBitNumber):
+def GetBit(x:int, oneBasedBitNumber:int):
     """Returns the value of the specified bit (1 to 32)."""
     if oneBasedBitNumber < 1 or oneBasedBitNumber > 32:
         raise ValueError('invalid bit number')
@@ -900,27 +914,27 @@ def GetContNumDataPoints(var:NexVar) -> int:
     return int(NexRun("GetContNumDataPoints", locals()))
 
 #matlab
-def GetContVarFromMatlab(doc:NexDoc, MatrixName, TimestampOfFirstValue, TimeStep):
+def GetContVarFromMatlab(doc:NexDoc, MatrixName:str, TimestampOfFirstValue:float, TimeStep:float):
     """Imports the specified matrix from Matlab. Each column of the matrix is imported as a continuous variable."""
     return NexRun("GetContVarFromMatlab", locals())
 
 #matlab
-def GetContVarWithTimestampsFromMatlab(doc:NexDoc, MatrixName, UseFirstDeltaAsDigRate):
+def GetContVarWithTimestampsFromMatlab(doc:NexDoc, MatrixName:str, UseFirstDeltaAsDigRate:int):
     """Imports the specified 2-column matrix containing continuous variable data from Matlab."""
     return NexRun("GetContVarWithTimestampsFromMatlab", locals())
 
 #docproperties
-def GetDocComment(doc:NexDoc):
+def GetDocComment(doc:NexDoc) -> str:
     """Returns the document comment string."""
     return NexRun("GetDocComment", locals())
 
 #docproperties
-def GetDocEndTime(doc:NexDoc):
+def GetDocEndTime(doc:NexDoc) -> float:
     """Returns the maximum timestamp value (in seconds) for all the document variables."""
     return NexRun("GetDocEndTime", locals())
 
 #docproperties
-def GetDocStartTime(doc:NexDoc):
+def GetDocStartTime(doc:NexDoc) -> float:
     """Returns the minimum timestamp value (in seconds) for all the document variables."""
     return NexRun("GetDocStartTime", locals())
 
@@ -940,97 +954,97 @@ def GetField(stringWithFields, fieldnumber) -> str:
     return NexRun("GetField", locals())
 
 #fileselection
-def GetFileCount(fileFilter) -> int:
+def GetFileCount(fileFilter:str) -> int:
     """Returns the number of files that match the file filter."""
     return int(NexRun("GetFileCount", locals()))
 
 #fileselection
-def GetFileName(index) -> str:
+def GetFileName(index:int) -> str:
     """Returns the file name for the specified index after GetFileCount() was called."""
     return NexRun("GetFileName", locals())
 
 #math
-def GetFirstGE(var, time):
+def GetFirstGE(var:NexVar, time:float) -> int:
     """Returns the index of the first timestamp in the specified variable that is greater than or equal to the specified number."""
     return int(NexRun("GetFirstGE", locals()))
 
 #math
-def GetFirstGT(var, time):
+def GetFirstGT(var:NexVar, time:float) -> int:
     """Returns the index of the first timestamp in the specified variable that is greater than the specified number."""
     return int(NexRun("GetFirstGT", locals()))
 
 #matlab
-def GetIntervalVarFromMatlab(doc:NexDoc, MatrixName):
+def GetIntervalVarFromMatlab(doc:NexDoc, MatrixName:str):
     """Imports the specified matrix containing intervals from Matlab."""
     return NexRun("GetIntervalVarFromMatlab", locals())
 
 #varproperties
-def GetName(var) -> str:
+def GetName(var:NexVar) -> str:
     """Returns the name of the variable."""
     return NexRun("GetName", locals())
 
 #str
-def GetNumFields(stringWithFields) -> int:
+def GetNumFields(stringWithFields:str) -> int:
     """Returns the number of fields in the string. The field is a substring that does not contain spaces, tabs or commas."""
     return int(NexRun("GetNumFields", locals()))
 
 #anres
-def GetNumResColumnName(doc:NexDoc, col) -> str:
+def GetNumResColumnName(doc:NexDoc, col:int) -> str:
     """Returns the name of the specified column of the Numerical Results Window."""
     return NexRun("GetNumResColumnName", locals())
 
 #anres
-def GetNumResSummaryColumnName(doc:NexDoc, col) -> str:
+def GetNumResSummaryColumnName(doc:NexDoc, col:int) -> str:
     """Returns the name of the specified column of the Numerical Results Summary Window of the first graphical view of the document."""
     return NexRun("GetNumResSummaryColumnName", locals())
 
 #anres
-def GetNumResSummaryData(doc:NexDoc, row, col) -> str:
+def GetNumResSummaryData(doc:NexDoc, row:int, col:int) -> str:
     """Returns the string value of the specified cell in the Numerical Results Summary Window of the first graphical view of the document."""
     return NexRun("GetNumResSummaryData", locals())
 
 #varproperties
-def GetSpikeCount(var:NexVar):
+def GetSpikeCount(var:NexVar) -> int:
     """Returns the number of timestamps in the variable."""
     return int(NexRun("GetSpikeCount", locals()))
 
 #analysis
-def GetTemplateParValue(templateName, paramName) -> str:
+def GetTemplateParValue(templateName:str, paramName:str) -> str:
     """Returns the value of the specified template parameter as string. Python only"""
     return NexRun("GetTemplateParValue", locals())
 
 #docproperties
-def GetTimestampFrequency(doc:NexDoc):
+def GetTimestampFrequency(doc:NexDoc) -> float:
     """Returns the frequency used in the internal representation of the timestamps."""
     return NexRun("GetTimestampFrequency", locals())
 
 #docvariables
-def GetVar(doc:NexDoc, varNumber, varType) -> NexVar:
+def GetVar(doc:NexDoc, varNumber:int, varType:str) -> NexVar:
     """Returns the reference to the specified variable."""
     return NexRun("GetVar", locals())
 
 #docvariables
-def GetVarByName(doc:NexDoc, name) -> NexVar:
+def GetVarByName(doc:NexDoc, name:str) -> NexVar:
     """Returns the reference to the variable which has the specified name."""
     return NexRun("GetVarByName", locals())
 
 #docvariables
-def GetVarCount(doc:NexDoc, varType):
+def GetVarCount(doc:NexDoc, varType:str) -> int:
     """Returns the number of variables of the specified type in the file."""
     return int(NexRun("GetVarCount", locals()))
 
 #matlab
-def GetVarFromMatlab(doc:NexDoc, varname, isneuron):
+def GetVarFromMatlab(doc:NexDoc, varname:str, isneuron:int):
     """Imports the specified Matlab timestamps vector as neuron or event variable."""
     return NexRun("GetVarFromMatlab", locals())
 
 #docvariables
-def GetVarName(doc:NexDoc, varNumber, varType) -> str:
+def GetVarName(doc:NexDoc, varNumber:int, varType:str) -> str:
     """Returns the name of the specified variable."""
     return NexRun("GetVarName", locals())
 
 #varproperties
-def GetVarSpikeCount(doc:NexDoc, varNumber, varType) -> str:
+def GetVarSpikeCount(doc:NexDoc, varNumber:int, varType:str) -> str:
     """Returns the number of timestamps in the specified variable."""
     return int(NexRun("GetVarSpikeCount", locals()))
 
@@ -1060,17 +1074,17 @@ def IntOr(doc:NexDoc, intervalVar1:NexVar, intervalVar2:NexVar) -> NexVar:
     return NexRun("IntOr", locals())
 
 #varoperations
-def IntSize(intervalVar:NexVar, minInt, maxInt) -> NexVar:
+def IntSize(intervalVar:NexVar, minInt:float, maxInt:float) -> NexVar:
     """Creates a new Interval Variable that contains the intervals with the specified length range."""
     return NexRun("IntSize", locals())
 
 #varoperations
-def ISIFilter(var:NexVar, minISI) -> NexVar:
+def ISIFilter(var:NexVar, minISI:float) -> NexVar:
     """Creates the new event containing the timestamps of the specified variable that have preceding interspike intervals larger than the specified value."""
     return NexRun("ISIFilter", locals())
 
 #varselection
-def IsSelected(var:NexVar):
+def IsSelected(var:NexVar) -> int:
     """Returns 1 if the specified variable is selected, 0 otherwise."""
     return int(NexRun("IsSelected", locals()))
 
@@ -1080,7 +1094,7 @@ def Join(var1:NexVar, var2:NexVar) -> NexVar:
     return NexRun("Join", locals())
 
 #varoperations
-def LastBefore(var1:NexVar, var2:NexVar, fromTime, toTime) -> NexVar:
+def LastBefore(var1:NexVar, var2:NexVar, fromTime:float, toTime:float) -> NexVar:
     """Creates the new event containing the last timestamp of var1 in each of the intervals [var2+fromTime, var2+toTime]."""
     return NexRun("LastBefore", locals())
 
@@ -1090,97 +1104,97 @@ def LastInInterval(var:NexVar, intervalVar:NexVar) -> NexVar:
     return NexRun("LastInInterval", locals())
 
 #str
-def Left(string, nchar):
+def Left(string:str, nchar:int) -> str:
     """Returns a substring that starts at the beginning of the string."""
     return NexRun("Left", locals())
 
 #varoperations
-def LinearCombinationOfContVars(doc:NexDoc, resultName, contVar1:NexVar, coeff1, contVar2:NexVar, coeff2):
+def LinearCombinationOfContVars(doc:NexDoc, resultName:str, contVar1:NexVar, coeff1:float, contVar2:NexVar, coeff2:float):
     """Calculates a linear combination of two continuous variables."""
     return NexRun("LinearCombinationOfContVars", locals())
 
 #varoperations
-def MakeIntervals(var:NexVar, shiftMin, shiftMax) -> NexVar:
+def MakeIntervals(var:NexVar, shiftMin:float, shiftMax:float) -> NexVar:
     """Creates new interval variable with intervals [varTimestamp+shiftmin, varTimestamp+shiftMax]."""
     return NexRun("MakeIntervals", locals())
 
 #varoperations
-def MakeIntFromEnd(intStartVar:NexVar, intEndVar:NexVar, shift1, shift2) -> NexVar:
+def MakeIntFromEnd(intStartVar:NexVar, intEndVar:NexVar, shift1:float, shift2:float) -> NexVar:
     """Creates new interval variable. For each timestamp tend of the intEndVar, it looks for the last timestamp (tstart) of the intStartVar before tend. If tstart is after the previous timestamp of intEndVar, it adds the interval [tstart+shift1, tend+shift2] to the result."""
     return NexRun("MakeIntFromEnd", locals())
 
 #varoperations
-def MakeIntFromStart(intStartVar:NexVar, intEndVar:NexVar, shift1, shift2) -> NexVar:
+def MakeIntFromStart(intStartVar:NexVar, intEndVar:NexVar, shift1:float, shift2:float) -> NexVar:
     """Creates new interval variable. For each timestamp tstart of intStartVar, it looks for the first timestamp tend of the intEndVar after tstart. If tend is before the next timestamp of intStartVar, it adds the interval [tstart+shift1, tend+shift2] to the result."""
     return NexRun("MakeIntFromStart", locals())
 
 #varoperations
-def MarkerExtract(doc:NexDoc, MarkerVariableName, ExtractString) -> NexVar:
+def MarkerExtract(doc:NexDoc, MarkerVariableName:str, ExtractString:str) -> NexVar:
     """Creates a new event variable based on existing marker variable."""
     return NexRun("MarkerExtract", locals())
 
 #filereadandwrite
-def MergeFiles(name_list, gap) -> NexDoc:
+def MergeFiles(name_list:List[str], gap:float) -> NexDoc:
     """Opens and merges the specified files, returns the reference to the merged file."""
     return NexRun("MergeFiles", locals())
 
 #str
-def Mid(string, nstartchar, nchar):
+def Mid(string:str, nstartchar:int, nchar:int) -> str:
     """Returns the specified substring."""
     return NexRun("Mid", locals())
 
 #analysis
-def ModifyTemplate(doc:NexDoc, templateName, paramName, newParValue):
+def ModifyTemplate(doc:NexDoc, templateName:str, paramName:str, newParValue:str):
     """Modifies one of the template parameters."""
     return NexRun("ModifyTemplate", locals())
 
 #creatingnewvars
-def NewContVar(doc:NexDoc, frequency, mVmin, mVmax) -> NexVar:
+def NewContVar(doc:NexDoc, frequency:float, mVmin:float, mVmax:float) -> NexVar:
     """Creates a new continuous variable."""
     return NexRun("NewContVar", locals())
 
 #creatingnewvars
-def NewContVarWithFloats(doc:NexDoc, frequency) -> NexVar:
+def NewContVarWithFloats(doc:NexDoc, frequency:float) -> NexVar:
     """Creates a new continuous variable, returns a reference to the new variable."""
     return NexRun("NewContVarWithFloats", locals())
 
 #filereadandwrite
-def NewDocument(frequency) -> NexDoc:
+def NewDocument(frequency:float) -> NexDoc:
     """Creates a new document (data file) with the specified timestamp frequency."""
     return NexRun("NewDocument", locals())
 
 #creatingnewvars
-def NewEvent(doc:NexDoc, count) -> NexVar:
+def NewEvent(doc:NexDoc, count:int) -> NexVar:
     """Creates a new timestamped variable."""
     return NexRun("NewEvent", locals())
 
 #creatingnewvars
-def NewIntEvent(doc:NexDoc, count = 0) -> NexVar:
+def NewIntEvent(doc:NexDoc, count:int = 0) -> NexVar:
     """Creates a new interval variable."""
     return NexRun("NewIntEvent", locals())
 
 #creatingnewvars
-def NewPopVector(doc:NexDoc, type) -> NexVar:
+def NewPopVector(doc:NexDoc, type:int) -> NexVar:
     """Creates a new population vector."""
     return NexRun("NewPopVector", locals())
 
 #varoperations
-def NotSync(var1:NexVar, var2:NexVar, fromTime, toTime) -> NexVar:
+def NotSync(var1:NexVar, var2:NexVar, fromTime:float, toTime:float) -> NexVar:
     """Creates the new event containing all the timestamps of var1 that are NOT in the intervals [var2+fromTime, var2+toTime]."""
     return NexRun("NotSync", locals())
 
 #varoperations
-def NthAfter(var1:NexVar, var2:NexVar, N) -> NexVar:
+def NthAfter(var1:NexVar, var2:NexVar, N:int) -> NexVar:
     """Creates the new variable with the N-th timestamp in var1 after each timestamp in var2."""
     return NexRun("NthAfter", locals())
 
 #str
-def NumToChar(number):
+def NumToChar(number:int) -> str:
     """Converts a number to a one-character string containing a character with the ASCII code equal to the number."""
     return chr(number)
 
 #str
-def NumToStr(number, formatString = ''):
+def NumToStr(number:float, formatString:str = '') -> str:
     """Converts number to string using an optional format string."""
     if formatString == '':
         return str(float(number))
@@ -1191,17 +1205,17 @@ def NumToStr(number, formatString = ''):
         return fmt.format(float(number))
 
 #filereadandwrite
-def OpenDocument(filePath) -> NexDoc:
+def OpenDocument(filePath:str) -> NexDoc:
     """Opens a data file with the specified path. Returns a reference to the opened document."""
     return NexRun("OpenDocument", locals())
 
 #readwritebinaryandtext
-def OpenFile(filePath, mode) -> int:
+def OpenFile(filePath:str, mode:str) -> int:
     """Opens text file using the specified mode, returns file ID."""
     return int(NexRun("OpenFile", locals()))
 
 #varoperations
-def PositionSpeed(varX:NexVar, varY:NexVar, deltaT, smoothRadius) -> NexVar:
+def PositionSpeed(varX:NexVar, varY:NexVar, deltaT:float, smoothRadius:float) -> NexVar:
     """Calculates the position speed from X and Y coordinate variables and creates a new continuous variable."""
     return NexRun("PositionSpeed", locals())
 
@@ -1211,33 +1225,33 @@ def PrintGraphics(doc:NexDoc):
     return NexRun("PrintGraphics", locals())
 
 #readwritebinaryandtext
-def ReadBinary(fileID, valueType):
+def ReadBinary(fileID:int, valueType:str) -> float:
     """Reads a binary value of a specified type from a file."""
     return NexRun("ReadBinary", locals())
 
 #analysis
-def RecalculateAnalysisInWindow(doc:NexDoc, graphWindowNumber):
+def RecalculateAnalysisInWindow(doc:NexDoc, graphWindowNumber:int):
     """Forces recalculation of analysis in the specified graphic window."""
     return NexRun("RecalculateAnalysisInWindow", locals())
 
 #varoperations
-def Rename(doc:NexDoc, var:NexVar, newName):
+def Rename(doc:NexDoc, var:NexVar, newName:str):
     """Renames the specified variable."""
     doc._OnRenameVar(var, newName)
     return NexRun("Rename", locals())
 
 #str
-def Right(string, nchar):
+def Right(string:str, nchar:int) -> str:
     """Returns a substring that ends at the end of the string."""
     return NexRun("Right", locals())
 
 #math
-def RoundToTS(doc:NexDoc, time):
+def RoundToTS(doc:NexDoc, time:float) -> float:
     """Rounds the specified number to the nearest timestamp value."""
     return NexRun("RoundToTS", locals())
 
 #filereadandwrite
-def SaveAsTextFile(doc:NexDoc, filePath):
+def SaveAsTextFile(doc:NexDoc, filePath:str):
     """Saves the document in the text file with the specified file name."""
     return NexRun("SaveAsTextFile", locals())
 
@@ -1247,27 +1261,27 @@ def SaveDocument(doc:NexDoc):
     return NexRun("SaveDocument", locals())
 
 #filereadandwrite
-def SaveDocumentAs(doc:NexDoc, filePath):
+def SaveDocumentAs(doc:NexDoc, filePath:str):
     """Saves the specified document (in .nex, .nex5 or .edf format) in a file with the specified file path."""
     return NexRun("SaveDocumentAs", locals())
 
 #analysis
-def SaveGraphics(doc:NexDoc, filePath, asPng):
+def SaveGraphics(doc:NexDoc, filePath:str, asPng:int):
     """Saves the graphics of the first graphics window of the document to a WMF, PNG or SVG file."""
     return NexRun("SaveGraphics", locals())
 
 #analysis
-def SaveNumResults(doc:NexDoc, fileName):
+def SaveNumResults(doc:NexDoc, fileName:str):
     """Saves the numerical results to a text file with the specified name."""
     return NexRun("SaveNumResults", locals())
 
 #analysis
-def SaveNumSummary(doc:NexDoc, filename):
+def SaveNumSummary(doc:NexDoc, filename:str):
     """Saves the summary of numerical results to a text file with the specified name."""
     return NexRun("SaveNumSummary", locals())
 
 #varselection
-def Select(doc:NexDoc, var):
+def Select(doc:NexDoc, var:NexVar):
     """Selects the specified variable for analysis."""
     return NexRun("Select", locals())
 
@@ -1292,7 +1306,7 @@ def SelectEven(var:NexVar) -> NexVar:
     return NexRun("SelectEven", locals())
 
 #fileselection
-def SelectFile():
+def SelectFile() -> str:
     """Opens File Open dialog and returns the path of the file selected in the dialog."""
     return NexRun("SelectFile", locals())
 
@@ -1302,32 +1316,32 @@ def SelectOdd(var:NexVar) -> NexVar:
     return NexRun("SelectOdd", locals())
 
 #varoperations
-def SelectRandom(var:NexVar, nSelect) -> NexVar:
+def SelectRandom(var:NexVar, nSelect:int) -> NexVar:
     """Creates the new event containing randomly selected timestamps of the specified variable."""
     return NexRun("SelectRandom", locals())
 
 #varoperations
-def SelectTrials(var:NexVar, selectList) -> NexVar:
+def SelectTrials(var:NexVar, selectList:str) -> NexVar:
     """Creates the new event containing the specified timestamps of a variable."""
     return NexRun("SelectTrials", locals())
 
 #varselection
-def SelectVar(doc:NexDoc, number, varType):
+def SelectVar(doc:NexDoc, number:int, varType:str):
     """Selects the specified variable for analysis."""
     return NexRun("SelectVar", locals())
 
 #analysis
-def SendGraphicsToPowerPoint(doc:NexDoc, presentationPath, slideTitle, comment, addParameters, useBitmap):
+def SendGraphicsToPowerPoint(doc:NexDoc, presentationPath:str, slideTitle:str, comment:str, addParameters:int, useBitmap:int):
     """Sends the contents of the first graphical window of the document to the specified PowerPoint presentation."""
     return NexRun("SendGraphicsToPowerPoint", locals())
 
 #anres
-def SendResultsSummaryToExcel(doc:NexDoc, fileName, worksheetName, useFirstEmptyRow, cellName, includeHeader, includeFileName):
+def SendResultsSummaryToExcel(doc:NexDoc, fileName:str, worksheetName:str, useFirstEmptyRow:int, cellName:str, includeHeader:int, includeFileName:int):
     """Sends summary of numerical results (of the first graphics window of the document) to Excel."""
     return NexRun("SendResultsSummaryToExcel", locals())
 
 #anres
-def SendResultsToExcel(doc:NexDoc, fileName, worksheetName, useFirstEmptyRow, cellName, includeHeader, includeFileName):
+def SendResultsToExcel(doc:NexDoc, fileName:str, worksheetName:str, useFirstEmptyRow:int, cellName:str, includeHeader:int, includeFileName:int):
     """Sends numerical results (of the first graphics window of the document) to Excel."""
     return NexRun("SendResultsToExcel", locals())
 
@@ -1337,22 +1351,22 @@ def SendSelectedVarsToMatlab(doc:NexDoc):
     return NexRun("SendSelectedVarsToMatlab", locals())
 
 #docproperties
-def SetDocEndTime(doc:NexDoc, endtime):
+def SetDocEndTime(doc:NexDoc, endtime:float):
     """Sets the length (in seconds) of experimental session for the document."""
     return NexRun("SetDocEndTime", locals())
 
 #docproperties
-def SetDocStartTime(doc:NexDoc, start_time):
+def SetDocStartTime(doc:NexDoc, start_time:float):
     """Sets the start (in seconds) of experimental session for the document."""
     return NexRun("SetDocStartTime", locals())
 
 #excel
-def SetExcelCell(worksheet, cell, text, excelFilePath = ''):
+def SetExcelCell(worksheet:str, cell:str, text:str, excelFilePath:str = ''):
     """Sets the text value of the specified cell in Excel."""
     return NexRun("SetExcelCell", locals())
 
 #docvariables
-def SetNeuronType(doc:NexDoc, var:NexVar, type):
+def SetNeuronType(doc:NexDoc, var:NexVar, type:int):
     """Changes the type of the specified timestamped variable."""
     return NexRun("SetNeuronType", locals())
 
@@ -1362,7 +1376,7 @@ def Shift(var:NexVar, shiftBy:float) -> NexVar:
     return NexRun("Shift", locals())
 
 #run
-def Sleep(nms):
+def Sleep(nms:float):
     """Pauses execution of the script for nms milliseconds."""
     return NexRun("Sleep", locals())
 
@@ -1372,12 +1386,12 @@ def StartOfInterval(intervalVar:NexVar) -> NexVar:
     return NexRun("StartOfInterval", locals())
 
 #str
-def StrLength(stringVal) -> int:
+def StrLength(stringVal:str) -> int:
     """Calculates the number of characters in the string."""
     return int(NexRun("StrLength", locals()))
 
 #str
-def StrToNum(stringRepresentingNumber) -> float:
+def StrToNum(stringRepresentingNumber:str) -> float:
     """Converts string to number."""
     return float(stringRepresentingNumber)
 
@@ -1387,27 +1401,27 @@ def Sync(var1:NexVar, var2:NexVar, fromTime:float, toTime:float) -> NexVar:
     return NexRun("Sync", locals())
 
 #readwritebinaryandtext
-def WriteLine(fileID, lineString):
+def WriteLine(fileIDI:int, lineString:str):
     """Writes a line of text to a text file."""
     return NexRun("WriteLine", locals())
 
 #ui
-def ExecuteMenuCommand(menuName):
+def ExecuteMenuCommand(menuName:str):
     """Executes menu command."""
     return NexRun("ExecuteMenuCommand", locals())
 
 #analysis
-def SaveResults(doc:NexDoc, fileName, comment):
+def SaveResults(doc:NexDoc, fileName:str, comment:str):
     """ Saves numerical and graphical results as well as an analysis template for the first graphical view of the document."""
     return NexRun("SaveResults", locals())
 
 #resultfilesreadandwrite
-def OpenSavedResult(filePath):
+def OpenSavedResult(filePath:str):
     """Opens saved result file."""
     return NexRun("OpenSavedResult", locals())
 
 #run
-def RunScript(filePath):
+def RunScript(filePath:str):
     """Runs NexScript script."""
     if not os.path.splitext(filePath)[1].lower() == '.py':
         return NexRun("RunScript", locals())
@@ -1415,21 +1429,17 @@ def RunScript(filePath):
         raise ValueError('to run Python script, use import statement')
 
 #analysis
-def SelectVariablesIn1DView(doc:NexDoc, varNamesInCommaSeparatedString):
+def SelectVariablesIn1DView(doc:NexDoc, varNamesInCommaSeparatedString:str):
     """Selects variables in 1D View using provided comma separated list of variable names."""
     return NexRun("SelectVariablesIn1DView", locals())
 
 #varselection
-def SelectVariables(doc:NexDoc, varNamesInCommaSeparatedString):
+def SelectVariables(doc:NexDoc, varNamesInCommaSeparatedString:str):
     """Selects variables for analysis using provided comma separated list of variable names. Python only"""
     DeselectAll(doc)
     # split on empty string returns a list with one empty string. we want to avoid that
     if varNamesInCommaSeparatedString == '':
         return
-    if sys.version_info > (3, 0):
-        from io import StringIO
-    else:
-        from StringIO import StringIO
     s = StringIO(varNamesInCommaSeparatedString)
     varNamesList = list(csv.reader(s, skipinitialspace=True))[0]
     for varName in varNamesList:
@@ -1451,17 +1461,17 @@ def GetFilePathWithoutExtension(thePath:str) -> str:
 
 
 #ui
-def ActivateWindow(docPath, windowName):
+def ActivateWindow(docPath:str, windowName:str):
     """Activates the specified child window."""
     return NexRun("ActivateWindow", locals())
 
 #ui
-def CloseWindow(docPath, windowName):
+def CloseWindow(docPath:str, windowName:str):
     """Closes specified child window."""
     return NexRun("CloseWindow", locals())
 
 #math
-def PoissonSurprise(k, freq, time):
+def PoissonSurprise(k:int, freq:float, time:float):
     """Returns Poisson Surprise -  the probability that ``k`` or more spikes occur randomly in a period of length ``time``. Python only"""
     return NexRun("PoissonSurprise", locals())
 
@@ -1469,7 +1479,7 @@ def PoissonSurprise(k, freq, time):
 # FUNCTIONS THAT CALL PYTHON
 
 #math
-def seed(iseed):
+def seed(iseed:int):
     """Initializes random number generator."""
     random.seed(iseed)
     return
@@ -1480,7 +1490,7 @@ def rand():
     return random.uniform(0,1)
 
 #math
-def expo(fmean):
+def expo(fmean:float):
     """Returns a random value exponentially distributed with the specified mean."""
     d = 0.0;
     while d == 0.0:
@@ -1488,92 +1498,72 @@ def expo(fmean):
     return -math.log( d ) * fmean;
 
 #math
-def floor(theNumber):
+def floor(theNumber:float):
     """Returns math.floor(theNumber)."""
     return math.floor(theNumber)
 
 #math
-def ceil(theNumber):
+def ceil(theNumber:float):
     """Returns math.ceil(theNumber)."""
     return math.ceil(theNumber)
 
 #math
-def round(theNumber):
+def round(theNumber:float):
     """Returns round(theNumber)."""
-    if sys.version_info < (3,):
-        import __builtin__
-        return __builtin__.round(theNumber)
-    else:
-        import builtins
-        return builtins.round(theNumber)
+    return builtins.round(theNumber)
 
 #math
-def abs(theNumber):
+def abs(theNumber:float):
     """Returns abs(theNumber)."""
-    if sys.version_info < (3,):
-        import __builtin__
-        return __builtin__.abs(theNumber)
-    else:
-        import builtins
-        return builtins.abs(theNumber)
+    return builtins.abs(theNumber)
 
 #math
-def sqrt(theNumber):
+def sqrt(theNumber:float):
     """Returns math.sqrt(theNumber)."""
     return math.sqrt(theNumber)
 
 #math
-def pow(theNumber, thePower):
+def pow(theNumber:float, thePower:float):
     """Returns math.pow(theNumber, thePower)."""
     return math.pow(theNumber, thePower)
 
 #math
-def exp(theNumber):
+def exp(theNumber:float):
     """Returns math.exp(theNumber)."""
     return math.exp(theNumber)
 
 #math
-def min(x, y):
+def min(x:float, y:float):
     """Returns min(x, y)."""
-    if sys.version_info < (3,):
-        import __builtin__
-        return __builtin__.min(x, y)
-    else:
-        import builtins
-        return builtins.min(x, y)
+    return builtins.min(x, y)
 
 #math
-def max(x, y):
+def max(x:float, y:float):
     """Returns max(x, y)."""
-    if sys.version_info < (3,):
-        import __builtin__
-        return __builtin__.max(x, y)
-    else:
-        import builtins
-        return builtins.max(x, y)
+    return builtins.max(x, y)
 
 #math
-def log(theNumber):
+def log(theNumber:float):
     """Returns math.log(theNumber)."""
     return math.log(theNumber)
 
 #math
-def sin(theNumber):
+def sin(theNumber:float):
     """Returns math.sin(theNumber)."""
     return math.sin(theNumber)
 
 #math
-def cos(theNumber):
+def cos(theNumber:float):
     """Returns math.cos(theNumber)."""
     return math.cos(theNumber)
 
 #math
-def tan(theNumber):
+def tan(theNumber:float):
     """Returns math.tan(theNumber)."""
     return math.tan(theNumber)
 
 #math
-def acos(theNumber):
+def acos(theNumber:float):
     """Returns math.acos(theNumber)."""
     return math.acos(theNumber)
 
@@ -1583,7 +1573,7 @@ def asin(theNumber):
     return math.asin(theNumber)
 
 #math
-def atan(theNumber):
+def atan(theNumber:float):
     """Returns math.atan(theNumber)."""
     return math.atan(theNumber)
 
@@ -1667,7 +1657,7 @@ def InstallPackageIfNeeded(packageName):
     """Function does nothing. Left for compatibility with internal NeuroExplorer scripting."""
     return
 
-def FilterContinuousVariableEx(contVar, filterType, filterImplementation, filterOrder, freq1, freq2, ripple=1.0):
+def FilterContinuousVariableEx(contVar:NexVar, filterType:str, filterImplementation:str, filterOrder:int, freq1:float, freq2:float, ripple:float=1.0):
     """Filters continuous variable using IIR of FIR frequency filter."""
     theLocals = locals()
     theLocals['contVar'] = contVar.varId
@@ -1693,7 +1683,7 @@ def DialogEx(jsonString:str) -> str:
     return NexRun("DialogEx", locals())
 
 
-def GetRecordingStartTimeString(doc:NexDoc):
+def GetRecordingStartTimeString(doc:NexDoc) -> str:
     """Returns recording start time (if available) as a string in ISO 8601 format. 
     Use datetime.strptime(sts, '%Y-%m-%dT%H:%M:%S.%f') to convert to Python datetime object."""
     return doc.GetRecordingStartTimeString()
@@ -1702,3 +1692,9 @@ def GetRecordingStartTimeString(doc:NexDoc):
 def SetRecordingStartTime(doc:NexDoc, dateTimeString:str):
     """Sets recording start time. dateTimeString should be in ISO 8601 format (use myDateTime.isoformat())""" 
     return doc.SetRecordingStartTime(dateTimeString)
+
+
+def CloseNonDataWindows(self):
+    """ Closes all analysis, 1D view or 3D view windows of the document."""
+    return self._SetProperty('CloseAllWindowsExceptDataWindow', '')
+

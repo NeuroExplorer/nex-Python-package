@@ -3,8 +3,8 @@ import struct
 import json
 import array
 import os
-import sys
 import tempfile
+import base64
 
 
 class SocketAdaptor:
@@ -148,12 +148,8 @@ def processResultFromNex(resultJsonBytes):
         if returnedObject['type'] == 'vectors':
             data = returnedObject['value']
             a = array.array('d')
-            if sys.version_info > (3, 0):
-                import base64
-                decoded = base64.decodebytes(data.encode('utf-8'))
-                a.frombytes(decoded)
-            else:
-                a.fromstring(data.decode("base64"))
+            decoded = base64.decodebytes(data.encode('utf-8'))
+            a.frombytes(decoded)
             columnSize = returnedObject['columnSize']
             if columnSize == 0:
                 return a.tolist()
@@ -236,7 +232,7 @@ def nexSetContValues(varId, timestamps, values):
     if len(timestamps) != len(values):
         raise ValueError('timestamps and values should be the lists of the same length')
 
-    if len(timestamps) < 1000:
+    if len(timestamps) < 2000:
         return RunJsonCommand(locals(), "SetContVarValues")
     else:
         ts = array.array('d')
@@ -245,8 +241,8 @@ def nexSetContValues(varId, timestamps, values):
         v.fromlist(values)
 
         fd, temp_path = tempfile.mkstemp()
-        os.write(fd, ts.tostring())
-        os.write(fd, v.tostring())
+        os.write(fd, ts.tobytes())
+        os.write(fd, v.tobytes())
         os.close(fd)
         return RunJsonCommand({'varId':varId, 'tempFile':temp_path}, "SetContVarValues")
 
