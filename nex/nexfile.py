@@ -351,6 +351,7 @@ class Reader(object):
         var['Timestamps'] = self._ReadAndScaleValues(tsValueType, var['Header']['Count'], self.tsFreq, True)
 
     def _ReadAndScaleValuesUsingNumpy(self, valueType, count, coeff=1.0, divide=False):
+        import numpy as np
         numpyTypes = [np.int16, np.uint16, np.int32, np.uint32, np.int64, np.uint64, np.float32, np.float64]
         numpyType = numpyTypes[valueType]
         values = np.fromfile(self.theFile, numpyType, count)
@@ -596,6 +597,8 @@ class NexWriter(object):
         :param values: list of variable values in mV or numpy array of values if numpy option is specified in constructor
         :return: none
         """
+        import numpy as np
+
         if self.useNumpy:
             self._VerifyIsNumpyArray('Values', values)
         if SamplingRate <= 0 or SamplingRate > self.tsFreq:
@@ -625,6 +628,8 @@ class NexWriter(object):
         :param fragmentValues: list of lists, each sublist is array data values in mV (or list of numpy arrays)
         :return:
         """
+        import numpy as np
+
         if self.useNumpy:
             self._VerifyIsNumpyArray('Timestamps', timestamps)
             for fragment in fragmentValues:
@@ -669,6 +674,8 @@ class NexWriter(object):
         :param markerFields: a list of lists (one list of numbers or strings per marker field)
         :return:
         """
+        import numpy as np
+
         if self.useNumpy:
             self._VerifyIsNumpyArray('Timestamps', timestamps)
         if len(fieldNames) != len(markerFields):

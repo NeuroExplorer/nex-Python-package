@@ -1,5 +1,5 @@
 # nex-Python-package
-Python package for running NeuroExplorer Python scripts an any IDE
+Python package for running NeuroExplorer Python scripts an any Python development environment (VS Code, Spyder, etc.)
 
 ## Description
 
@@ -11,15 +11,26 @@ To install the package, open Windows Command Prompt, type `pip install -U nex` a
 
 If you are using Anaconda:
 
-- Type `Anaconda Prompt` in in the Windows Search Bar, select Anaconda version and then click on it
+- Type `Anaconda Prompt` in the Windows Search Bar, select Anaconda version and then click on it
 - Type `pip install -U nex` in Anaconda Prompt window and press Enter
+
+After the package is installed, you can run NeuroExplorer Python scripts in any Python development environment. 
+
+For example, to run PSTH analysis saved in the template `PerieventHistograms.ntp`, run this Python code:
+
+```python
+import nex
+doc = nex.GetActiveDocument()
+# run PSTH analysis saved in the template PerieventHistograms
+nex.ApplyTemplate(doc, "PerieventHistograms")
+``````
 
 The package also provides classes to read and write .nex and .nex5 data files.
 
 ```python
 import nex.nexfile
 reader = nex.nexfile.Reader()
-fileData = reader.ReadNexFile(r"C:\Data\file.nex5")
+fileData = reader.ReadNexFile(r"C:\path\to\file.nex5")
 ```
 
 

@@ -1,3 +1,7 @@
+""" 
+    nexLink module implements communication with NeuroExplorer via sockets.
+"""
+
 import socket
 import struct
 import json
@@ -5,6 +9,7 @@ import array
 import os
 import tempfile
 import base64
+import uuid
 
 
 class SocketAdaptor:
@@ -33,7 +38,7 @@ class SocketAdaptor:
         self._socket.close()
 
     def sendMessage(self, msg):
-        # Prefix each message with a 8-byte length
+        # Prefix each message with a message length as 8-byte integer
         msg = struct.pack('<q', len(msg)) + msg.encode('utf-8')
         self._socket.sendall(msg)
 
@@ -61,9 +66,7 @@ class SocketAdaptor:
             data += packet
         return data
 
-
 mySocket = None
-
 
 def DoConnect():
     global mySocket
@@ -75,7 +78,6 @@ def DoConnect():
         except Exception as ex:
             raise RuntimeError("Unable to connect to NeuroExplorer. Is NeuroExplorer running? Error: " + str(ex))
 
-
 def nexRunCommand(theCommand):
     global mySocket
     DoConnect()
@@ -83,7 +85,6 @@ def nexRunCommand(theCommand):
     mySocket.sendMessage(theCommand)
     msg = mySocket.receiveMessage()
     return msg
-
 
 # simple command dict here so that we do not have to modify nex.py
 def buildFunctionCommandDict(functionName, pars):
@@ -93,7 +94,6 @@ def buildFunctionCommandDict(functionName, pars):
             value = value.encode('utf-8')
         commandDict["parameters"].append({key: value})
     return commandDict
-
 
 # simple result processing here so that we do not have to modify nex.py
 def processResultFromNex(resultJsonBytes):
@@ -166,16 +166,13 @@ def processResultFromNex(resultJsonBytes):
 
     return returnedObject
 
-
 def RunJsonCommand(pars, functionName):
     commandDict = buildFunctionCommandDict(functionName, pars)
     resultJsonBytes = nexRunCommand(json.dumps(commandDict))
     return processResultFromNex(resultJsonBytes)
 
-
 def nexGetProperty(varOrDoc, theId, propertyName):
     return RunJsonCommand(locals(), "GetProperty")
-
 
 def nexGetIndexedNumResValue(docId, row, col):
     commandDict = {"type": "ExecuteNexScriptCommand", "functionName": "GetNumRes", "parameters": []}
@@ -186,7 +183,6 @@ def nexGetIndexedNumResValue(docId, row, col):
     resultJsonBytes = nexRunCommand(json.dumps(commandDict))
     return processResultFromNex(resultJsonBytes)
 
-
 def nexAddContValue(varId, timestamp, value):
     commandDict = {"type": "ExecuteNexScriptCommand", "functionName": "AddContValue", "parameters": []}
     fakeVar = {'type': 'varRef', 'value': varId}
@@ -195,7 +191,6 @@ def nexAddContValue(varId, timestamp, value):
     commandDict["parameters"].append({'value': value})
     resultJsonBytes = nexRunCommand(json.dumps(commandDict))
     return processResultFromNex(resultJsonBytes)
-
 
 def nexAddInterval(varId, interval_start, interval_end):
     commandDict = {"type": "ExecuteNexScriptCommand", "functionName": "AddInterval", "parameters": []}
@@ -206,7 +201,6 @@ def nexAddInterval(varId, interval_start, interval_end):
     resultJsonBytes = nexRunCommand(json.dumps(commandDict))
     return processResultFromNex(resultJsonBytes)
 
-
 def nexAddTimestamp(varId, timestamp):
     commandDict = {"type": "ExecuteNexScriptCommand", "functionName": "AddTimestamp", "parameters": []}
     fakeVar = {'type': 'varRef', 'value': varId}
@@ -215,18 +209,14 @@ def nexAddTimestamp(varId, timestamp):
     resultJsonBytes = nexRunCommand(json.dumps(commandDict))
     return processResultFromNex(resultJsonBytes)
 
-
 def nexCopyValuesToDocVar(docId, index, varId):
     return RunJsonCommand(locals(), "CopyValuesToDocVar")
-
 
 def nexSetDocProperty(docId, propertyAsJson):
     return RunJsonCommand(locals(), "SetDocProperty")
 
-
 def nexGetIndexedValue(varId, index):
     return RunJsonCommand(locals(), "GetIndexedValue")
-
 
 def nexSetContValues(varId, timestamps, values):
     if len(timestamps) != len(values):
@@ -240,29 +230,25 @@ def nexSetContValues(varId, timestamps, values):
         v = array.array('d')
         v.fromlist(values)
 
-        fd, temp_path = tempfile.mkstemp()
-        os.write(fd, ts.tobytes())
-        os.write(fd, v.tobytes())
-        os.close(fd)
-        return RunJsonCommand({'varId':varId, 'tempFile':temp_path}, "SetContVarValues")
-
+        tempDirPath = tempfile.gettempdir()
+        fileName = str(uuid.uuid4().hex)
+        tempFilePath = os.path.join(tempDirPath, fileName)
+        with open(tempFilePath, 'w+b') as f:
+            f.write(ts.tobytes())
+            f.write(v.tobytes())
+        return RunJsonCommand({'varId':varId, 'tempFile':tempFilePath}, "SetContVarValues")
 
 def nexSetIndexedValue(varId, index, theValue):
     return RunJsonCommand(locals(), "SetIndexedValue")
 
-
 def nexSpectrum(values):
     return RunJsonCommand(locals(), "Spectrum")
-
 
 def nexSetTimestamps(varId, timestamps):
     return RunJsonCommand(locals(), "SetTimestamps")
 
-
 def nexCreateWaveformVar(docId, name, waveformSamplingRate, timestamps, values):
     return RunJsonCommand(locals(), "CreateWaveformVar")
 
-
 def nexJsonStringAndNumArray(jsonString, numList):
     return RunJsonCommand(locals(), "JsonStringAndNumArray")
-
